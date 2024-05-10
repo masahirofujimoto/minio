@@ -1,0 +1,12 @@
+version: '3'
+services:
+  frontend:
+    build: .
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./:/usr/src/app
+    command: sh -c 'cd frontend && yarn start' && node minio.ts
+    ports:
+      - 8000:3000
+    tty: true

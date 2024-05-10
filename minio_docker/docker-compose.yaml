@@ -1,0 +1,62 @@
+services:
+
+# MinIOサーバーコンテナの設定
+  minio:
+    container_name: minio_test
+    image: minio/minio:latest
+
+# MinIOサーバーを開始し、管理コンソール(GUI)のアクセスポートを指定
+    command: ['server', '/data', '--console-address', ':9001']
+    ports:
+      - "9000:9000" # APIアクセス用
+      - "9001:9001" # 管理コンソール(GUI)用
+
+# USERとPASSWORDを省略する事も可能です。
+# その場合は minioadmin | minioadmin に自動で設定されます。
+    environment:
+      - "MINIO_ROOT_USER=minio"
+      - "MINIO_ROOT_PASSWORD=minio123"
+
+# minioが管理する設定ファイルや、アップロードしたファイルを
+# ローカルで参照したい場合や、登録したファイルを永続化したい場合は
+# ローカルのディレクトリをマウントします。
+#    volumes:
+#      - ./minio/data:/data
+
+# PC再起動後にminioコンテナが自動で起動してほしい場合など
+# 停止していたら自動で起動していてほしい場合は有効化します。
+#    restart: unless-stopped
+
+
+# MinIOクライアント(mc)コンテナの設定
+  mc:
+    image: minio/mc:latest
+    container_name: mc_test
+    depends_on:
+      - minio
+    environment:
+      - "MINIO_ROOT_USER=minio" # 上と同じユーザー名
+      - "MINIO_ROOT_PASSWORD=minio123" # 上と同じパスワード
+
+# mcコマンドでバケット作成と、作成したバケットにファイルを配置します。
+# まずは aliasを設定して、それ以降のコマンドで簡単にminio本体を
+# 指定できるようにします。
+# 今回は myminio というエイリアス名にしました。
+# mbは、バケットの新規作成を行う。make bucketの略
+# cpは、ローカルのファイルをminioにコピーします。
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 minio minio123;
+
+      mc mb myminio/mail-template;
+      mc mb myminio/image;
+      mc mb myminio/csv;
+
+      mc cp init_data/mail-template/* myminio/mail-template/;
+      mc cp init_data/image/* myminio/image/;
+      mc cp init_data/csv/* myminio/csv/;
+      "
+
+# minioにアップロードしたいファイルが入っているディレクトリをマウントします。
+    volumes:
+      - ./myData/init_data:/init_data
